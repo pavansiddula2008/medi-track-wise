@@ -33,9 +33,7 @@ database.exec(`
         id TEXT PRIMARY KEY,
         family_id TEXT NOT NULL REFERENCES families(id) ON DELETE CASCADE,
         name TEXT NOT NULL,
-        method TEXT NOT NULL CHECK (method IN ('email', 'phone')),
-        email TEXT UNIQUE,
-        phone TEXT UNIQUE,
+        username TEXT NOT NULL UNIQUE,
         password_hash TEXT NOT NULL,
         created_at TEXT NOT NULL
     );
@@ -52,7 +50,28 @@ database.exec(`
 `);
 
 const userColumns = database.prepare("PRAGMA table_info(users)").all().map(column => column.name);
-if (userColumns.includes("recovery_hash")) database.exec("ALTER TABLE users DROP COLUMN recovery_hash");
+if (!userColumns.includes("username")) {
+    database.exec(`
+        CREATE TABLE users_new (
+            id TEXT PRIMARY KEY,
+            family_id TEXT NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        INSERT INTO users_new (id, family_id, name, username, password_hash, created_at)
+        SELECT id, family_id, name,
+            lower(COALESCE(email, phone, replace(name, ' ', '.') || '.' || substr(id, 1, 6))),
+            password_hash, created_at
+        FROM users;
+        DROP TABLE users;
+        ALTER TABLE users_new RENAME TO users;
+        CREATE INDEX IF NOT EXISTS users_family_id_idx ON users(family_id);
+    `);
+} else if (userColumns.includes("recovery_hash")) {
+    database.exec("ALTER TABLE users DROP COLUMN recovery_hash");
+}
 
 class SQLiteSessionStore extends session.Store {
     get(sessionId, callback) {
@@ -71,10 +90,9 @@ class SQLiteSessionStore extends session.Store {
 
     set(sessionId, sessionData, callback = () => {}) {
         try {
-            const maxAge = Number(sessionData.cookie?.maxAge) || 7 * 24 * 60 * 60 * 1000;
             const expiresAt = sessionData.cookie?.expires
                 ? new Date(sessionData.cookie.expires).getTime()
-                : Date.now() + maxAge;
+                : Date.now() + 24 * 60 * 60 * 1000;
             database.prepare(`
                 INSERT INTO sessions (sid, session_json, expires_at) VALUES (?, ?, ?)
                 ON CONFLICT(sid) DO UPDATE SET session_json = excluded.session_json, expires_at = excluded.expires_at
@@ -87,10 +105,9 @@ class SQLiteSessionStore extends session.Store {
 
     touch(sessionId, sessionData, callback = () => {}) {
         try {
-            const maxAge = Number(sessionData.cookie?.maxAge) || 7 * 24 * 60 * 60 * 1000;
             const expiresAt = sessionData.cookie?.expires
                 ? new Date(sessionData.cookie.expires).getTime()
-                : Date.now() + maxAge;
+                : Date.now() + 24 * 60 * 60 * 1000;
             database.prepare("UPDATE sessions SET expires_at = ? WHERE sid = ?").run(expiresAt, sessionId);
             callback(null);
         } catch (error) {
@@ -121,8 +138,7 @@ app.use(session({
     cookie: {
         httpOnly: true,
         secure: isProduction,
-        sameSite: "strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000
+        sameSite: "strict"
     }
 }));
 
@@ -153,45 +169,41 @@ const authLimiter = rateLimit({
     message: { error: "Too many attempts. Please wait and try again." }
 });
 
-function normalizePhone(value) {
-    const digits = value.replace(/\D/g, "");
-    return `${value.trim().startsWith("+") ? "+" : ""}${digits}`;
+function normalizeUsername(value) {
+    return value.trim().toLowerCase();
 }
 
-function normalizeIdentity(method, value) {
-    return method === "email" ? value.trim().toLowerCase() : normalizePhone(value);
-}
-
-function validIdentity(method, value) {
-    if (method === "email") return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-    if (method === "phone") return /^\+?[1-9]\d{6,14}$/.test(value);
-    return false;
+function validUsername(value) {
+    return /^[a-z0-9][a-z0-9._@+-]{2,79}$/.test(value) ||
+        /^\+?[1-9]\d{6,14}$/.test(value) ||
+        (value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value));
 }
 
 function publicUser(row) {
     return {
         id: row.id,
         name: row.name,
-        method: row.method,
-        identity: row.method === "email" ? row.email : row.phone
+        username: row.username
     };
 }
 
 function publicFamily(user) {
     const family = database.prepare("SELECT id, invite_code FROM families WHERE id = ?").get(user.family_id);
     const members = database.prepare(`
-        SELECT id, name, method, email, phone FROM users WHERE family_id = ? ORDER BY created_at, name
+        SELECT id, name, username FROM users WHERE family_id = ? ORDER BY created_at, name
     `).all(user.family_id).map(publicUser);
     return { id: family.id, inviteCode: family.invite_code, members };
 }
 
-function sendAuthenticated(req, res, user, status = 200, extra = {}) {
+function sendAuthenticated(req, res, user, status = 200, rememberMe = false) {
     req.session.regenerate(error => {
         if (error) return res.status(500).json({ error: "Could not start a secure session." });
         req.session.userId = user.id;
+        if (rememberMe) req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
+        else req.session.cookie.expires = false;
         req.session.save(saveError => {
             if (saveError) return res.status(500).json({ error: "Could not save your session." });
-            res.status(status).json({ user: publicUser(user), family: publicFamily(user), ...extra });
+            res.status(status).json({ user: publicUser(user), family: publicFamily(user) });
         });
     });
 }
@@ -201,14 +213,13 @@ app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 app.post("/api/auth/register", requireSameOrigin, authLimiter, async (req, res, next) => {
     try {
         const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
-        const method = req.body.method;
-        const rawIdentity = typeof req.body.identity === "string" ? req.body.identity : "";
-        const identity = normalizeIdentity(method, rawIdentity);
+        const rawUsername = typeof req.body.username === "string" ? req.body.username : "";
+        const username = normalizeUsername(rawUsername);
         const password = typeof req.body.password === "string" ? req.body.password : "";
         const inviteCode = typeof req.body.familyCode === "string" ? req.body.familyCode.trim().toUpperCase() : "";
 
         if (name.length < 2 || name.length > 80) return res.status(400).json({ error: "Enter a name between 2 and 80 characters." });
-        if (!validIdentity(method, identity)) return res.status(400).json({ error: method === "phone" ? "Enter a valid international phone number." : "Enter a valid email address." });
+        if (!validUsername(username)) return res.status(400).json({ error: "Username must be 3 to 80 characters: letters, numbers, dot, underscore, dash, plus, or @." });
         if (password.length < 8 || Buffer.byteLength(password, "utf8") > 72) return res.status(400).json({ error: "Password must be at least 8 characters and no more than 72 bytes." });
         if (inviteCode && !/^[A-Z0-9]{6,16}$/.test(inviteCode)) return res.status(400).json({ error: "Family invite codes use 6 to 16 letters or numbers." });
 
@@ -231,19 +242,19 @@ app.post("/api/auth/register", requireSameOrigin, authLimiter, async (req, res, 
             if (memberCount >= 3) throw Object.assign(new Error("This family already has three patient accounts."), { status: 409 });
 
             database.prepare(`
-                INSERT INTO users (id, family_id, name, method, email, phone, password_hash, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(userId, family.id, name, method, method === "email" ? identity : null, method === "phone" ? identity : null, passwordHash, createdAt);
+                INSERT INTO users (id, family_id, name, username, password_hash, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            `).run(userId, family.id, name, username, passwordHash, createdAt);
             user = database.prepare("SELECT * FROM users WHERE id = ?").get(userId);
             database.exec("COMMIT");
         } catch (error) {
             database.exec("ROLLBACK");
             throw error;
         }
-        sendAuthenticated(req, res, user, 201);
+        sendAuthenticated(req, res, user, 201, Boolean(req.body.rememberMe));
     } catch (error) {
         if (error.code === "SQLITE_CONSTRAINT_UNIQUE" || /UNIQUE constraint failed/.test(error.message)) {
-            return res.status(409).json({ error: "That email or phone number already has an account." });
+            return res.status(409).json({ error: "That username is already in use." });
         }
         if (error.status) return res.status(error.status).json({ error: error.message });
         next(error);
@@ -252,61 +263,15 @@ app.post("/api/auth/register", requireSameOrigin, authLimiter, async (req, res, 
 
 app.post("/api/auth/login", requireSameOrigin, authLimiter, async (req, res, next) => {
     try {
-        const method = req.body.method;
-        const rawIdentity = typeof req.body.identity === "string" ? req.body.identity : "";
-        const identity = normalizeIdentity(method, rawIdentity);
+        const rawUsername = typeof req.body.username === "string" ? req.body.username : "";
+        const username = normalizeUsername(rawUsername);
         const password = typeof req.body.password === "string" ? req.body.password : "";
-        if (!validIdentity(method, identity) || !password) return res.status(400).json({ error: "Enter your registered email or phone and password." });
+        if (!validUsername(username) || !password) return res.status(400).json({ error: "Enter your username and password." });
 
-        const user = method === "email"
-            ? database.prepare("SELECT * FROM users WHERE email = ?").get(identity)
-            : database.prepare("SELECT * FROM users WHERE phone = ?").get(identity);
+        const user = database.prepare("SELECT * FROM users WHERE username = ?").get(username);
         const matches = user ? await bcrypt.compare(password, user.password_hash) : false;
-        if (!matches) return res.status(401).json({ error: "Email/phone or password is incorrect." });
-        sendAuthenticated(req, res, user);
-    } catch (error) {
-        next(error);
-    }
-});
-
-app.post("/api/auth/reset-password", requireSameOrigin, authLimiter, async (req, res, next) => {
-    try {
-        const method = req.body.method;
-        const rawIdentity = typeof req.body.identity === "string" ? req.body.identity : "";
-        const identity = normalizeIdentity(method, rawIdentity);
-        const recoveryCode = typeof req.body.recoveryCode === "string" ? req.body.recoveryCode.trim().toUpperCase() : "";
-        const password = typeof req.body.password === "string" ? req.body.password : "";
-        if (!validIdentity(method, identity) || !/^[A-F0-9]{24}$/.test(recoveryCode)) {
-            return res.status(400).json({ error: "Enter the account contact and a valid recovery code." });
-        }
-        if (password.length < 8 || Buffer.byteLength(password, "utf8") > 72) {
-            return res.status(400).json({ error: "Password must be at least 8 characters and no more than 72 bytes." });
-        }
-
-        const user = method === "email"
-            ? database.prepare("SELECT * FROM users WHERE email = ?").get(identity)
-            : database.prepare("SELECT * FROM users WHERE phone = ?").get(identity);
-        const suppliedHash = hashRecoveryCode(recoveryCode);
-        const storedHash = user?.recovery_hash ? Buffer.from(user.recovery_hash, "hex") : Buffer.alloc(suppliedHash.length);
-        const validCode = user?.recovery_hash && storedHash.length === suppliedHash.length && crypto.timingSafeEqual(storedHash, suppliedHash);
-        if (!validCode) return res.status(400).json({ error: "Contact or recovery code is incorrect." });
-
-        const passwordHash = await bcrypt.hash(password, 12);
-        const nextRecoveryCode = crypto.randomBytes(12).toString("hex").toUpperCase();
-        const nextRecoveryHash = hashRecoveryCode(nextRecoveryCode).toString("hex");
-        database.prepare("UPDATE users SET password_hash = ?, recovery_hash = ? WHERE id = ?").run(passwordHash, nextRecoveryHash, user.id);
-
-        const sessions = database.prepare("SELECT sid, session_json FROM sessions").all();
-        const removeSession = database.prepare("DELETE FROM sessions WHERE sid = ?");
-        for (const record of sessions) {
-            try {
-                if (JSON.parse(record.session_json).userId === user.id) removeSession.run(record.sid);
-            } catch {
-                removeSession.run(record.sid);
-            }
-        }
-
-        res.json({ status: "ok", recoveryCode: nextRecoveryCode });
+        if (!matches) return res.status(401).json({ error: "Username or password is incorrect." });
+        sendAuthenticated(req, res, user, 200, Boolean(req.body.rememberMe));
     } catch (error) {
         next(error);
     }

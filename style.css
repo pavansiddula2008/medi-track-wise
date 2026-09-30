@@ -806,6 +806,12 @@ select:focus {
 
     border-radius: 20px;
 
+    transform-origin: left center;
+
+    animation: chart-fill .72s cubic-bezier(.2, .7, .2, 1) backwards;
+
+    animation-delay: var(--bar-delay, 0ms);
+
 }
 
 
@@ -832,6 +838,32 @@ select:focus {
     gap: 15px;
 
     margin-top: 20px;
+
+}
+
+.patient-name-form {
+
+    display: grid;
+
+    grid-template-columns: minmax(0, 1fr) auto;
+
+    align-items: end;
+
+    gap: 10px;
+
+    margin-top: 20px;
+
+}
+
+.patient-name-form label {
+
+    grid-column: 1 / -1;
+
+}
+
+.patient-name-form button {
+
+    white-space: nowrap;
 
 }
 
@@ -1092,6 +1124,16 @@ body.dark .medicine {
 
 
 @media(max-width: 600px) {
+
+    .top-actions {
+
+        width: 100%;
+
+        flex-wrap: wrap;
+
+        justify-content: flex-start;
+
+    }
 
     .page {
 
@@ -1372,6 +1414,7 @@ body.dark .login-screen {
 .account-tabs {
 
     margin-top: 24px;
+    grid-template-columns: 1fr;
 
 }
 
@@ -1967,6 +2010,26 @@ nav button:hover {
 
     transition: transform .2s ease, box-shadow .2s ease;
 
+    animation: card-enter .42s cubic-bezier(.2, .7, .2, 1) backwards;
+
+}
+
+.cards .card:nth-child(2) {
+
+    animation-delay: .06s;
+
+}
+
+.cards .card:nth-child(3) {
+
+    animation-delay: .12s;
+
+}
+
+.cards .card:nth-child(4) {
+
+    animation-delay: .18s;
+
 }
 
 .cards .card:nth-child(2) {
@@ -2061,6 +2124,26 @@ textarea:focus-visible {
 .medicine {
 
     transition: background-color .18s ease, padding .18s ease;
+
+    animation: list-item-enter .3s ease-out backwards;
+
+}
+
+.medicine:nth-child(2) {
+
+    animation-delay: .04s;
+
+}
+
+.medicine:nth-child(3) {
+
+    animation-delay: .08s;
+
+}
+
+.medicine:nth-child(4) {
+
+    animation-delay: .12s;
 
 }
 
@@ -2279,6 +2362,36 @@ body.dark .reference-content h2 {
 
 }
 
+.remember-row {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 9px;
+
+    margin: 10px 0 4px;
+
+    color: var(--muted);
+
+    font-size: 13px;
+
+    cursor: pointer;
+
+}
+
+.remember-row input {
+
+    width: 17px;
+
+    height: 17px;
+
+    flex: 0 0 17px;
+
+    accent-color: var(--primary);
+
+}
+
 .recovery-dialog {
 
     width: min(92vw, 460px);
@@ -2373,5 +2486,45 @@ body.dark .recovery-code,
 body.dark .text-button {
 
     color: #84d4c6;
+
+}
+
+@keyframes card-enter {
+
+    from {
+        opacity: 0;
+        transform: translateY(9px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+}
+
+@keyframes list-item-enter {
+
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+}
+
+@keyframes chart-fill {
+
+    from {
+        transform: scaleX(0);
+    }
+
+    to {
+        transform: scaleX(1);
+    }
 
 }
