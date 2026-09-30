@@ -9,6 +9,7 @@ let medicineReferences = [];
 let adherenceLog = [];
 let currentAccountMode = "login";
 let currentLoginMethod = "email";
+let currentFamilyId = null;
 
 function readJSON(key, fallback) {
     try {
@@ -63,90 +64,44 @@ function setLoginMethod(method) {
 function setAccountMode(mode) {
     currentAccountMode = mode;
     const creating = mode === "create";
+    const recovering = mode === "recover";
+    const accountTabs = document.getElementById("accountTabs");
+    const passwordField = document.getElementById("passwordField");
     document.getElementById("profileNameField").classList.toggle("hidden", !creating);
     document.getElementById("profileName").disabled = !creating;
     document.getElementById("profileName").required = creating;
+    document.getElementById("familyCodeField").classList.toggle("hidden", !creating);
+    document.getElementById("familyCode").disabled = !creating;
+    passwordField.classList.toggle("hidden", recovering);
+    document.getElementById("loginPassword").disabled = recovering;
+    document.getElementById("loginPassword").required = !recovering;
+    document.getElementById("loginPassword").autocomplete = recovering ? "new-password" : (creating ? "new-password" : "current-password");
+    document.getElementById("forgotPasswordButton").classList.toggle("hidden", creating || recovering);
+    accountTabs.classList.toggle("hidden", recovering);
     document.getElementById("signInTab").classList.toggle("active", !creating);
     document.getElementById("createAccountTab").classList.toggle("active", creating);
     document.getElementById("signInTab").setAttribute("aria-selected", String(!creating));
     document.getElementById("createAccountTab").setAttribute("aria-selected", String(creating));
-    document.getElementById("loginTitle").textContent = creating ? "Create a patient profile" : "Your family's care, together";
-    document.getElementById("loginIntro").textContent = creating
-        ? `Add a profile for this device (${familyProfiles.length}/3 used).`
-        : "Sign in to a profile saved on this device.";
-    document.getElementById("accountSubmit").textContent = creating ? "Create profile" : "Sign in";
+    document.getElementById("loginTitle").textContent = recovering ? "Reset your password" : (creating ? "Create a patient profile" : "Your family's care, together");
+    document.getElementById("loginIntro").textContent = recovering
+        ? "Password reset help"
+        : (creating ? `Create a patient account or join an existing family (${familyProfiles.filter(profile => profile.familyId === currentFamilyId).length}/3 on this device).` : "Sign in with your registered email or phone and password.");
+    document.getElementById("accountSubmit").textContent = recovering ? "Back to sign in" : (creating ? "Create profile" : "Sign in");
+    document.getElementById("accountNotice").classList.toggle("hidden", recovering);
+    document.getElementById("resetHelp").classList.toggle("hidden", !recovering);
     document.getElementById("accountNotice").textContent = creating
-        ? "Up to three profiles can be saved on this device. Profiles are not password protected or synced to other devices."
-        : "Sign in using the email or phone number used when this local profile was created.";
+        ? "Use a family invite code to join an existing household. Accounts are stored on this server; medication records stay on this device."
+        : "Your password is verified by the server and is never stored in this browser.";
     document.getElementById("loginForm").reset();
     setLoginMethod(currentLoginMethod);
-}
-
-function handleAccountSubmit(event) {
-    event.preventDefault();
-    const emailMode = currentLoginMethod === "email";
-    const input = document.getElementById(emailMode ? "loginEmail" : "loginPhone");
-    const identity = input.value.trim();
-
-    if (!emailMode && !/^\+?[\d\s()-]{7,20}$/.test(identity)) {
-        input.setCustomValidity("Enter a valid phone number.");
-        input.reportValidity();
-        input.setCustomValidity("");
-        return;
-    }
-
-    if (currentAccountMode === "create") {
-        createFamilyProfile(identity, document.getElementById("profileName").value.trim());
-        return;
-    }
-
-    const profile = familyProfiles.find(item =>
-        item.method === currentLoginMethod && normalizeIdentity(item.identity) === normalizeIdentity(identity)
-    );
-    if (!profile) {
-        document.getElementById("accountNotice").textContent = "No profile matched. Create a profile first, or enter its saved email or phone.";
-        return;
-    }
-    activateProfile(profile);
-}
-
-function createFamilyProfile(identity, name) {
-    if (familyProfiles.length >= 3) {
-        document.getElementById("accountNotice").textContent = "This family device already has three profiles.";
-        return;
-    }
-    const duplicate = familyProfiles.some(profile =>
-        profile.method === currentLoginMethod && normalizeIdentity(profile.identity) === normalizeIdentity(identity)
-    );
-    if (duplicate) {
-        document.getElementById("accountNotice").textContent = "A profile already uses that contact. Sign in or use a different one.";
-        return;
-    }
-
-    let importedMedicines = [];
-    if (!familyProfiles.length) importedMedicines = readJSON("medTrackMedicines", []);
-    const profile = {
-        id: `patient-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        name,
-        method: currentLoginMethod,
-        identity,
-        medicines: importedMedicines,
-        healthReadings: [],
-        medicineReferences: [],
-        adherenceLog: [],
-        alertsSent: [],
-        caregiverName: "",
-        caregiverPhone: "",
-        conversation: []
-    };
-    familyProfiles.push(profile);
-    activateProfile(profile);
+    document.getElementById("familyCode").disabled = !creating;
 }
 
 function activateProfile(profile) {
     if (activeProfile) saveData();
     closeReminder();
     activeProfile = profile;
+    currentFamilyId = profile.familyId || currentFamilyId;
     activeProfile.medicines ||= [];
     activeProfile.healthReadings ||= [];
     activeProfile.medicineReferences ||= [];
@@ -161,7 +116,7 @@ function activateProfile(profile) {
     healthReadings = activeProfile.healthReadings;
     medicineReferences = activeProfile.medicineReferences;
     adherenceLog = activeProfile.adherenceLog;
-    localStorage.setItem("medTrackSession", JSON.stringify({ profileId: profile.id }));
+    document.getElementById("familyInviteCode").textContent = profile.familyCode || "Not available";
     document.getElementById("loginScreen").classList.add("hidden");
     document.querySelector(".topbar").classList.remove("hidden");
     document.querySelector("footer").classList.remove("hidden");
@@ -174,20 +129,22 @@ function activateProfile(profile) {
 function populateProfileSelect() {
     const select = document.getElementById("profileSelect");
     if (!select || !activeProfile) return;
-    select.innerHTML = familyProfiles.map(profile =>
+    const members = familyProfiles.filter(profile => profile.familyId === currentFamilyId);
+    select.innerHTML = members.map(profile =>
         `<option value="${escapeHTML(profile.id)}">${escapeHTML(profile.name)}</option>`
     ).join("");
     select.value = activeProfile.id;
 }
 
 function switchProfile(profileId) {
-    const profile = familyProfiles.find(item => item.id === profileId);
+    const profile = familyProfiles.find(item => item.id === profileId && item.familyId === currentFamilyId);
     if (profile && profile.id !== activeProfile?.id) activateProfile(profile);
 }
 
 function addFamilyProfile() {
-    if (familyProfiles.length >= 3) {
-        alert("This family device supports up to three patient profiles.");
+    const familyMembers = familyProfiles.filter(profile => profile.familyId === currentFamilyId);
+    if (familyMembers.length >= 3) {
+        alert("This family already has three patient accounts.");
         return;
     }
     document.getElementById("loginScreen").classList.remove("hidden");
@@ -195,17 +152,39 @@ function addFamilyProfile() {
     document.querySelector("footer").classList.add("hidden");
     document.querySelectorAll(".page").forEach(page => page.classList.add("hidden"));
     setAccountMode("create");
+    document.getElementById("familyCode").value = activeProfile?.familyCode || "";
 }
 
-function logout() {
+async function logout() {
     saveData();
+    try {
+        await fetch("/api/auth/logout", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: "{}"
+        });
+    } catch {
+        document.getElementById("accountNotice").textContent = "The server could not be reached to expire this session.";
+    }
     activeProfile = null;
-    localStorage.removeItem("medTrackSession");
+    currentFamilyId = null;
     document.querySelector(".topbar").classList.add("hidden");
     document.querySelector("footer").classList.add("hidden");
     document.querySelectorAll(".page").forEach(page => page.classList.add("hidden"));
     document.getElementById("loginScreen").classList.remove("hidden");
     setAccountMode("login");
+}
+
+async function copyFamilyInviteCode() {
+    const code = activeProfile?.familyCode;
+    if (!code) return;
+    try {
+        await navigator.clipboard.writeText(code);
+        showReminder("Family invite code copied.");
+    } catch {
+        showReminder(`Share this family invite code: ${code}`);
+    }
 }
 
 function saveData() {
@@ -239,6 +218,43 @@ function isScheduledOnDate(medicine, dateString) {
 function scheduleDayNames(medicine) {
     const days = Array.isArray(medicine.days) ? medicine.days : [0, 1, 2, 3, 4, 5, 6];
     return days.length === 7 ? "Every day" : days.map(day => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day]).join(", ");
+}
+
+function adjustStock(id, change) {
+    const medicine = medicines.find(item => Number(item.id) === id);
+    if (!medicine) return;
+    medicine.stockCount = Math.max(0, (Number(medicine.stockCount) || 0) + change);
+    saveData();
+    renderAll();
+}
+
+function getFilteredMedicines() {
+    const search = (document.getElementById("searchMedicine")?.value || "").toLowerCase().trim();
+    return search ? medicines.filter(item => item.name.toLowerCase().includes(search)) : medicines;
+}
+
+function medicineHTML(medicine, showDelete = false) {
+    const takenToday = medicine.taken && medicine.takenDate === today();
+    const instructions = medicine.instructions ? `<div class="medicine-info">${escapeHTML(medicine.instructions)}</div>` : "";
+    const stock = Number.isFinite(medicine.stockCount)
+        ? `<div class="medicine-stock ${medicine.stockCount <= (medicine.refillThreshold || 3) ? "stock-low" : ""}">${medicine.stockCount} unit(s) left <button class="stock-adjust" onclick="adjustStock(${Number(medicine.id)}, 1)">+ Refill</button></div>`
+        : "";
+    const photo = medicine.prescriptionImage
+        ? `<img class="medicine-photo-thumb" src="${medicine.prescriptionImage}" alt="Prescription photo for ${escapeHTML(medicine.name)}">`
+        : "";
+    return `<article class="medicine"><div>${photo}<div class="medicine-name">💊 ${escapeHTML(medicine.name)}</div>
+        <div class="medicine-info">${escapeHTML(medicine.dose)} · ${formatTime(medicine.time)} · ${escapeHTML(medicine.frequency || "Daily")} · ${scheduleDayNames(medicine)}${medicine.startDate ? ` · from ${escapeHTML(medicine.startDate)}` : ""}${medicine.endDate ? ` · until ${escapeHTML(medicine.endDate)}` : ""}</div>${instructions}${stock}</div>
+        <div class="medicine-actions">${takenToday ? `<span class="taken">✓ Taken</span>` : `<button class="take" onclick="takeMedicine(${Number(medicine.id)})">Mark Taken</button>`}
+        <button class="icon-button speak-medicine" onclick="speakMedicine(${Number(medicine.id)})" aria-label="Read ${escapeHTML(medicine.name)} aloud" title="Read aloud">🔊</button>
+        ${showDelete ? `<button class="delete" onclick="deleteMedicine(${Number(medicine.id)})">Delete</button>` : ""}</div></article>`;
+}
+
+function updateGreeting() {
+    const heading = document.getElementById("greetingTitle");
+    if (!heading) return;
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+    heading.textContent = `${greeting}, ${activeProfile?.name?.split(/\s+/)[0] || "there"}.`;
 }
 
 function compressImageFile(file) {
@@ -332,59 +348,89 @@ function deleteMedicine(id) {
     renderAll();
 }
 
-function takeMedicine(id) {
-    const medicine = medicines.find(item => item.id === id);
-    if (!medicine || (medicine.taken && medicine.takenDate === today())) return;
-    medicine.taken = true;
-    medicine.takenDate = today();
-    if (Number.isFinite(medicine.stockCount)) medicine.stockCount = Math.max(0, medicine.stockCount - (medicine.unitsPerDose || 1));
-    adherenceLog.push({ medicineId: medicine.id, name: medicine.name, date: today(), time: new Date().toTimeString().slice(0, 5) });
-    saveData();
-    renderAll();
-    showReminder(`${medicine.name}, ${medicine.dose}, recorded as taken.`);
+async function handleAccountSubmit(event) {
+    event.preventDefault();
+    const emailMode = currentLoginMethod === "email";
+    const input = document.getElementById(emailMode ? "loginEmail" : "loginPhone");
+    const identity = input.value.trim();
+    const password = document.getElementById("loginPassword").value;
+
+    if (currentAccountMode === "recover") {
+        setAccountMode("login");
+        return;
+    }
+
+    if (!emailMode && !/^\+?[\d\s()-]{7,20}$/.test(identity)) {
+        input.setCustomValidity("Enter a valid phone number.");
+        input.reportValidity();
+        input.setCustomValidity("");
+        return;
+    }
+
+    const creating = currentAccountMode === "create";
+    const body = { method: currentLoginMethod, identity, password };
+    if (creating) {
+        body.name = document.getElementById("profileName").value.trim();
+        body.familyCode = document.getElementById("familyCode").value.trim();
+    }
+    const notice = document.getElementById("accountNotice");
+    notice.textContent = creating ? "Creating your account…" : "Signing in…";
+    try {
+        const endpoint = creating ? "/api/auth/register" : "/api/auth/login";
+        const response = await fetch(endpoint, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            notice.textContent = result.error || "Could not complete sign-in.";
+            return;
+        }
+        acceptAuthenticatedSession(result);
+    } catch {
+        notice.textContent = "Can't reach the sign-in server. Start the app with npm start and open its localhost URL.";
+    }
 }
 
-function adjustStock(id, change) {
-    const medicine = medicines.find(item => item.id === id);
-    if (!medicine) return;
-    medicine.stockCount = Math.max(0, (Number(medicine.stockCount) || 0) + change);
-    saveData();
-    renderAll();
-}
+function acceptAuthenticatedSession(data) {
+    const previousProfiles = familyProfiles;
+    const familyId = data.family.id;
+    const members = data.family.members.map(member => {
+        const previous = previousProfiles.find(profile =>
+            profile.userId === member.id || profile.id === member.id ||
+            (profile.method === member.method && normalizeIdentity(profile.identity || "") === normalizeIdentity(member.identity))
+        );
+        const oldMedicines = !previous && previousProfiles.length === 0 && member.id === data.user.id
+            ? readJSON("medTrackMedicines", [])
+            : [];
+        return {
+            ...(previous || {}),
+            id: member.id,
+            userId: member.id,
+            familyId,
+            familyCode: data.family.inviteCode,
+            name: member.name,
+            method: member.method,
+            identity: member.identity,
+            medicines: previous?.medicines || oldMedicines,
+            healthReadings: previous?.healthReadings || [],
+            medicineReferences: previous?.medicineReferences || [],
+            adherenceLog: previous?.adherenceLog || [],
+            alertsSent: previous?.alertsSent || [],
+            caregiverName: previous?.caregiverName || "",
+            caregiverPhone: previous?.caregiverPhone || "",
+            conversation: previous?.conversation || []
+        };
+    });
 
-function getFilteredMedicines() {
-    const search = (document.getElementById("searchMedicine")?.value || "").toLowerCase().trim();
-    return search ? medicines.filter(item => item.name.toLowerCase().includes(search)) : medicines;
+    familyProfiles = [...previousProfiles.filter(profile => profile.familyId !== familyId), ...members];
+    currentFamilyId = familyId;
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(familyProfiles));
+    const active = members.find(member => member.userId === data.user.id);
+    if (active) activateProfile(active);
 }
-
-function medicineHTML(medicine, showDelete = false) {
-    const takenToday = medicine.taken && medicine.takenDate === today();
-    const instructions = medicine.instructions ? `<div class="medicine-info">${escapeHTML(medicine.instructions)}</div>` : "";
-    const stock = Number.isFinite(medicine.stockCount)
-        ? `<div class="medicine-stock ${medicine.stockCount <= (medicine.refillThreshold || 3) ? "stock-low" : ""}">${medicine.stockCount} unit(s) left <button class="stock-adjust" onclick="adjustStock(${Number(medicine.id)}, 1)">+ Refill</button></div>`
-        : "";
-    const photo = medicine.prescriptionImage
-        ? `<img class="medicine-photo-thumb" src="${medicine.prescriptionImage}" alt="Prescription photo for ${escapeHTML(medicine.name)}">`
-        : "";
-    return `<article class="medicine">
-        <div>${photo}<div class="medicine-name">💊 ${escapeHTML(medicine.name)}</div>
-        <div class="medicine-info">${escapeHTML(medicine.dose)} · ${formatTime(medicine.time)} · ${escapeHTML(medicine.frequency || "Daily")} · ${scheduleDayNames(medicine)}${medicine.startDate ? ` · from ${escapeHTML(medicine.startDate)}` : ""}${medicine.endDate ? ` · until ${escapeHTML(medicine.endDate)}` : ""}</div>${instructions}${stock}</div>
-        <div class="medicine-actions">
-            ${takenToday ? `<span class="taken">✓ Taken</span>` : `<button class="take" onclick="takeMedicine(${Number(medicine.id)})">Mark Taken</button>`}
-            <button class="icon-button speak-medicine" onclick="speakMedicine(${Number(medicine.id)})" aria-label="Read ${escapeHTML(medicine.name)} aloud" title="Read aloud">🔊</button>
-            ${showDelete ? `<button class="delete" onclick="deleteMedicine(${Number(medicine.id)})">Delete</button>` : ""}
-        </div>
-    </article>`;
-}
-
-function updateGreeting() {
-    const heading = document.getElementById("greetingTitle");
-    if (!heading) return;
-    const hour = new Date().getHours();
-    const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-    heading.textContent = `${greeting}, ${activeProfile?.name?.split(/\s+/)[0] || "there"}.`;
-}
-
 function updateHomeAlerts() {
     const container = document.getElementById("homeAlerts");
     if (!container) return;
@@ -895,30 +941,26 @@ function setupImagePreview() {
     });
 }
 
-function initializeApp() {
+async function initializeApp() {
     if (localStorage.getItem("medTrackDark") === "true") document.body.classList.add("dark");
     updateAutomaticTheme();
     setupImagePreview();
     document.getElementById("bpDate").value = today();
-    const savedSession = readJSON("medTrackSession", null);
-    let profile = savedSession?.profileId ? familyProfiles.find(item => item.id === savedSession.profileId) : null;
-
-    if (!familyProfiles.length && savedSession?.identity) {
-        profile = {
-            id: `patient-${Date.now()}`, name: savedSession.identity.split("@")[0],
-            identity: savedSession.identity, method: savedSession.method || "email",
-            medicines: readJSON("medTrackMedicines", []), healthReadings: [], medicineReferences: [],
-            adherenceLog: [], alertsSent: [], caregiverName: "", caregiverPhone: "", conversation: []
-        };
-        familyProfiles.push(profile);
-    }
-
-    if (profile) activateProfile(profile);
-    else {
-        document.getElementById("loginScreen").classList.remove("hidden");
-        document.querySelector(".topbar").classList.add("hidden");
-        document.querySelector("footer").classList.add("hidden");
-        setAccountMode("login");
+    setAccountMode("login");
+    try {
+        const response = await fetch("/api/auth/session", {
+            credentials: "same-origin",
+            cache: "no-store"
+        });
+        const session = await response.json();
+        if (response.ok && session.authenticated && session.user && session.family) {
+            acceptAuthenticatedSession(session);
+        } else {
+            showLoginScreen();
+        }
+    } catch {
+        showLoginScreen();
+        document.getElementById("accountNotice").textContent = "The sign-in server is unavailable. Start the app with npm start and open its localhost URL.";
     }
 
     if ("serviceWorker" in navigator && ["http:", "https:"].includes(location.protocol)) {
@@ -930,6 +972,12 @@ function initializeApp() {
         checkMedicationReminder();
         updateHomeAlerts();
     }, 60000);
+}
+
+function showLoginScreen() {
+        document.getElementById("loginScreen").classList.remove("hidden");
+        document.querySelector(".topbar").classList.add("hidden");
+        document.querySelector("footer").classList.add("hidden");
 }
 
 initializeApp();

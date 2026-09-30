@@ -1,4 +1,4 @@
-const CACHE_NAME = "med-track-wise-v4";
+const CACHE_NAME = "med-track-wise-v8";
 const APP_FILES = ["./", "./index.html", "./style.css", "./script.js", "./manifest.webmanifest"];
 
 self.addEventListener("install", event => {
@@ -19,6 +19,7 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("fetch", event => {
     if (event.request.method !== "GET") return;
+    if (new URL(event.request.url).pathname.startsWith("/api/")) return;
 
     event.respondWith(
         caches.match(event.request).then(cached => {

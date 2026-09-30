@@ -6,19 +6,19 @@
 
 :root {
 
-    --primary: #1683d8;
-    --primary-dark: #096db8;
+    --primary: #087f78;
+    --primary-dark: #06655f;
 
-    --background: #f4f8fb;
-    --card: #ffffff;
+    --background: #edf4ef;
+    --card: #fffefa;
 
-    --text: #172033;
-    --muted: #718096;
+    --text: #203a34;
+    --muted: #667b73;
 
-    --border: #e3e8ef;
+    --border: #d7e4dd;
 
-    --green: #20a566;
-    --orange: #e69532;
+    --green: #28845e;
+    --orange: #bd7138;
     --purple: #7655d6;
 
 }
@@ -27,8 +27,8 @@
 body {
 
     font-family:
-        Arial,
-        Helvetica,
+        "Aptos",
+        "Segoe UI",
         sans-serif;
 
     background: var(--background);
@@ -1801,5 +1801,577 @@ body.dark .stock-adjust {
         text-align: left;
 
     }
+
+}
+
+/* ================= VISUAL POLISH ================= */
+
+body {
+
+    background-image:
+        linear-gradient(rgba(8, 127, 120, .025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(8, 127, 120, .025) 1px, transparent 1px);
+
+    background-size: 28px 28px;
+
+}
+
+.topbar {
+
+    background: rgba(255, 254, 250, .94);
+
+    backdrop-filter: blur(14px);
+
+    box-shadow: 0 4px 18px rgba(32, 58, 52, .05);
+
+}
+
+.logo {
+
+    color: var(--primary-dark);
+
+    letter-spacing: 0;
+
+}
+
+nav button {
+
+    transition: color .18s ease, background .18s ease, transform .18s ease;
+
+}
+
+nav button:hover {
+
+    background: #e5f2eb;
+
+    transform: translateY(-1px);
+
+}
+
+.hero {
+
+    position: relative;
+
+    overflow: hidden;
+
+    min-height: 264px;
+
+    border: 1px solid rgba(8, 127, 120, .12);
+
+    border-radius: 12px;
+
+    background:
+        linear-gradient(110deg, #e1f1e8 0%, #eff7e9 55%, #fff4de 100%);
+
+    box-shadow: 0 16px 34px rgba(35, 81, 66, .08);
+
+    animation: rise-in .55s cubic-bezier(.2, .7, .2, 1) both;
+
+}
+
+.hero::after {
+
+    position: absolute;
+
+    right: -55px;
+
+    bottom: -82px;
+
+    width: 48%;
+
+    height: 180px;
+
+    border: 1px solid rgba(8, 127, 120, .12);
+
+    background: repeating-linear-gradient(135deg, transparent 0 12px, rgba(8, 127, 120, .045) 12px 13px);
+
+    content: "";
+
+    transform: rotate(-8deg);
+
+    pointer-events: none;
+
+}
+
+.hero > div {
+
+    position: relative;
+
+    z-index: 1;
+
+}
+
+.hero h1,
+.page-heading h1,
+.login-panel h1 {
+
+    color: #1f443b;
+
+    font-family: "Aptos Display", "Segoe UI", sans-serif;
+
+    font-weight: 700;
+
+}
+
+.hero h1 {
+
+    max-width: 640px;
+
+    font-size: 44px;
+
+    line-height: 1.08;
+
+}
+
+.hero-icon {
+
+    display: grid;
+
+    width: 124px;
+
+    height: 124px;
+
+    flex: 0 0 124px;
+
+    place-items: center;
+
+    border: 1px solid rgba(8, 127, 120, .12);
+
+    border-radius: 24px;
+
+    background: rgba(255, 254, 250, .58);
+
+    font-size: 76px;
+
+    transform: rotate(3deg);
+
+    animation: float-gentle 4.5s ease-in-out infinite;
+
+}
+
+.page:not(.hidden) {
+
+    animation: page-enter .28s ease-out both;
+
+}
+
+.cards .card {
+
+    border-top: 3px solid var(--primary);
+
+    border-radius: 8px;
+
+    background: var(--card);
+
+    box-shadow: 0 8px 20px rgba(32, 58, 52, .045);
+
+    transition: transform .2s ease, box-shadow .2s ease;
+
+}
+
+.cards .card:nth-child(2) {
+
+    border-top-color: var(--green);
+
+}
+
+.cards .card:nth-child(3) {
+
+    border-top-color: #d58a39;
+
+}
+
+.cards .card:nth-child(4) {
+
+    border-top-color: #7985b9;
+
+}
+
+.cards .card:hover {
+
+    box-shadow: 0 13px 26px rgba(32, 58, 52, .1);
+
+    transform: translateY(-3px);
+
+}
+
+.card-icon {
+
+    border-radius: 8px;
+
+}
+
+.panel,
+.progress-box {
+
+    border-radius: 8px;
+
+    box-shadow: 0 8px 24px rgba(32, 58, 52, .045);
+
+}
+
+.panel h2,
+.progress-box h2,
+.reference-content h2 {
+
+    color: #294a41;
+
+}
+
+.primary,
+.secondary,
+.take,
+.delete,
+.icon-button,
+.stock-adjust {
+
+    transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .18s ease, box-shadow .18s ease;
+
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+
+    outline: 3px solid rgba(8, 127, 120, .28);
+
+    outline-offset: 2px;
+
+}
+
+.primary {
+
+    box-shadow: 0 5px 12px rgba(8, 127, 120, .16);
+
+}
+
+.primary:hover,
+.secondary:hover,
+.take:hover,
+.icon-button:hover,
+.stock-adjust:hover {
+
+    box-shadow: 0 6px 14px rgba(32, 58, 52, .12);
+
+    transform: translateY(-1px);
+
+}
+
+.medicine {
+
+    transition: background-color .18s ease, padding .18s ease;
+
+}
+
+.medicine:hover {
+
+    background: rgba(8, 127, 120, .035);
+
+}
+
+.alert-item {
+
+    animation: alert-enter .32s ease-out both;
+
+}
+
+.alert-item.alert-urgent {
+
+    box-shadow: inset 0 0 0 1px rgba(201, 74, 66, .08);
+
+}
+
+.login-screen {
+
+    background:
+        radial-gradient(ellipse at 12% 16%, rgba(164, 211, 181, .35), transparent 42%),
+        radial-gradient(ellipse at 90% 88%, rgba(241, 204, 132, .22), transparent 38%),
+        linear-gradient(145deg, #edf4ef, #f5f6ed 60%, #f5f0e4);
+
+}
+
+.login-panel {
+
+    border-radius: 12px;
+
+    box-shadow: 0 24px 65px rgba(32, 58, 52, .14);
+
+    animation: login-enter .55s cubic-bezier(.2, .7, .2, 1) both;
+
+}
+
+.login-brand {
+
+    color: var(--primary-dark);
+
+}
+
+.login-tabs {
+
+    border-color: var(--border);
+
+}
+
+.login-tab.active {
+
+    color: var(--primary-dark);
+
+}
+
+.alert-item.alert-next {
+
+    border-color: var(--primary);
+
+    background: #e7f4ef;
+
+}
+
+@keyframes rise-in {
+
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+}
+
+@keyframes page-enter {
+
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+}
+
+@keyframes login-enter {
+
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+}
+
+@keyframes alert-enter {
+
+    from {
+        opacity: 0;
+        transform: translateX(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+}
+
+@keyframes float-gentle {
+
+    0%,
+    100% {
+        transform: rotate(3deg) translateY(0);
+    }
+
+    50% {
+        transform: rotate(1deg) translateY(-5px);
+    }
+
+}
+
+@media(max-width: 600px) {
+
+    .hero {
+
+        min-height: auto;
+
+    }
+
+    .hero-icon {
+
+        width: 86px;
+
+        height: 86px;
+
+        flex-basis: 86px;
+
+        border-radius: 18px;
+
+        font-size: 54px;
+
+    }
+
+    .login-panel {
+
+        box-shadow: 0 16px 38px rgba(32, 58, 52, .12);
+
+    }
+
+}
+
+@media(prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+
+        scroll-behavior: auto !important;
+
+        animation-duration: .01ms !important;
+
+        animation-iteration-count: 1 !important;
+
+        transition-duration: .01ms !important;
+
+    }
+
+}
+
+body.dark .hero h1,
+body.dark .page-heading h1,
+body.dark .login-panel h1,
+body.dark .panel h2,
+body.dark .progress-box h2,
+body.dark .reference-content h2 {
+
+    color: var(--text);
+
+}
+
+.text-button {
+
+    display: block;
+
+    margin: 11px auto 0;
+
+    padding: 7px 10px;
+
+    border: 0;
+
+    color: var(--primary-dark);
+
+    background: transparent;
+
+    font: inherit;
+
+    font-size: 13px;
+
+    text-decoration: underline;
+
+    cursor: pointer;
+
+}
+
+.recovery-dialog {
+
+    width: min(92vw, 460px);
+
+    margin: auto;
+
+    padding: 0;
+
+    border: 1px solid var(--border);
+
+    border-radius: 12px;
+
+    color: var(--text);
+
+    background: var(--card);
+
+    box-shadow: 0 24px 70px rgba(20, 42, 37, .22);
+
+}
+
+.recovery-dialog::backdrop {
+
+    background: rgba(20, 42, 37, .52);
+
+    backdrop-filter: blur(3px);
+
+}
+
+.recovery-dialog-content {
+
+    display: grid;
+
+    gap: 14px;
+
+    padding: 28px;
+
+}
+
+.recovery-dialog-content h2 {
+
+    font-size: 23px;
+
+}
+
+.recovery-dialog-content p:not(.eyebrow) {
+
+    color: var(--muted);
+
+    font-size: 14px;
+
+    line-height: 1.5;
+
+}
+
+.recovery-code {
+
+    display: block;
+
+    overflow-wrap: anywhere;
+
+    padding: 14px;
+
+    border: 1px dashed var(--primary);
+
+    border-radius: 8px;
+
+    color: var(--primary-dark);
+
+    background: rgba(8, 127, 120, .07);
+
+    font-family: Consolas, monospace;
+
+    font-size: 20px;
+
+    letter-spacing: 1px;
+
+    text-align: center;
+
+}
+
+body.dark .recovery-dialog {
+
+    border-color: var(--border);
+
+    color: var(--text);
+
+    background: #172231;
+
+}
+
+body.dark .recovery-code,
+body.dark .text-button {
+
+    color: #84d4c6;
 
 }

@@ -1,0 +1,21 @@
+{
+  "name": "med-track-wise",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline-first family medication tracker with server-backed accounts",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.0.1",
+    "express-session": "^1.18.2",
+    "helmet": "^8.1.0"
+  }
+}

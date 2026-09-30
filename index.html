@@ -12,7 +12,7 @@
 
     <title>Med Track Wise</title>
 
-    <meta name="theme-color" content="#1683d8">
+    <meta name="theme-color" content="#087f78">
 
     <link rel="manifest" href="manifest.webmanifest">
 
@@ -31,7 +31,7 @@
         <p class="eyebrow">PRIVATE FAMILY MEDICINE TRACKER</p>
         <h1 id="loginTitle">Your family's care, together</h1>
         <p id="loginIntro" class="login-intro">Sign in to a profile saved on this device.</p>
-        <div class="login-tabs account-tabs" role="tablist" aria-label="Account action">
+        <div id="accountTabs" class="login-tabs account-tabs" role="tablist" aria-label="Account action">
             <button id="signInTab" class="login-tab active" type="button" role="tab" aria-selected="true" onclick="setAccountMode('login')">Sign in</button>
             <button id="createAccountTab" class="login-tab" type="button" role="tab" aria-selected="false" onclick="setAccountMode('create')">Create account</button>
         </div>
@@ -52,9 +52,19 @@
                 <label for="loginPhone">Phone number</label>
                 <input id="loginPhone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+1 555 123 4567" title="Enter a valid phone number" disabled>
             </div>
+            <div id="passwordField" class="login-field">
+                <label for="loginPassword">Password</label>
+                <input id="loginPassword" type="password" autocomplete="current-password" minlength="8" maxlength="72" placeholder="At least 8 characters" required>
+            </div>
+            <div id="familyCodeField" class="login-field hidden">
+                <label for="familyCode">Family invite code (optional)</label>
+                <input id="familyCode" autocomplete="off" minlength="6" maxlength="16" placeholder="Enter a family code to join" disabled>
+            </div>
             <button id="accountSubmit" class="primary login-submit" type="submit">Sign in</button>
+            <button id="forgotPasswordButton" class="text-button" type="button" onclick="setAccountMode('recover')">Forgot password?</button>
         </form>
-        <p id="accountNotice" class="login-notice">Profiles are stored only in this browser. They are not password protected or synced to other devices.</p>
+        <p id="accountNotice" class="login-notice">Accounts are verified by the Med Track Wise server. Medication records remain on this device.</p>
+        <p id="resetHelp" class="login-notice hidden">Self-service password reset is not configured. Contact your family administrator to reset this account. Email and SMS delivery are not available in this app.</p>
     </section>
 </main>
 
@@ -726,6 +736,11 @@
         <button class="primary" onclick="saveCaregiver()">Save caregiver</button>
         <button class="secondary" onclick="addFamilyProfile()">＋ Add family profile</button>
         <button class="secondary" onclick="shareCaregiverUpdate()">Send missed-dose update</button>
+        <div class="family-invite">
+            <span>Family invite code</span>
+            <code id="familyInviteCode">Not available</code>
+            <button class="secondary" onclick="copyFamilyInviteCode()">Copy code</button>
+        </div>
         <p class="field-help">Missed-dose alerts can appear on this device. Automatic SMS or WhatsApp delivery needs a connected messaging service; this button opens a message for you to send.</p>
 
     </div>
