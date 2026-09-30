@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Med Track Wise</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
+</head>
+
+<body>
+
+<!-- ================= HEADER ================= -->
+
+<header class="topbar">
+
+    <div class="logo">
+        ❤️ <span>Med Track Wise</span>
+    </div>
+
+    <nav>
+
+        <button onclick="showPage('dashboard')">
+            Dashboard
+        </button>
+
+        <button onclick="showPage('medicines')">
+            Medicines
+        </button>
+
+        <button onclick="showPage('schedule')">
+            Schedule
+        </button>
+
+        <button onclick="showPage('progress')">
+            Progress
+        </button>
+
+        <button onclick="showPage('caregiver')">
+            Caregiver
+        </button>
+
+        <button onclick="showPage('assistant')">
+            AI Assistant
+        </button>
+
+    </nav>
+
+    <div class="top-actions">
+
+        <button
+            class="icon-button"
+            onclick="toggleDarkMode()"
+            title="Dark mode"
+        >
+            🌙
+        </button>
+
+        <button
+            class="icon-button"
+            onclick="requestNotifications()"
+            title="Enable notifications"
+        >
+            🔔
+        </button>
+
+    </div>
+
+</header>
+
+
+<!-- ================= DASHBOARD ================= -->
+
+<section
+    id="dashboard"
+    class="page"
+>
+
+    <div class="hero">
+
+        <div>
+
+            <p class="eyebrow">
+                SMART MEDICATION MANAGEMENT
+            </p>
+
+            <h1>
+                Never miss an important dose.
+            </h1>
+
+            <p>
+                Organize medicines, receive reminders,
+                track adherence and keep caregivers informed.
+            </p>
+
+            <button
+                class="primary"
+                onclick="showPage('medicines')"
+            >
+                + Add Medicine
+            </button>
+
+        </div>
+
+        <div class="hero-icon">
+            💊
+        </div>
+
+    </div>
+
+
+    <!-- STATISTICS -->
+
+    <div class="cards">
+
+        <div class="card">
+
+            <div class="card-icon">
+                💊
+            </div>
+
+            <p>Today's Medicines</p>
+
+            <strong id="medicineCount">
+                0
+            </strong>
+
+        </div>
+
+
+        <div class="card">
+
+            <div class="card-icon green">
+                ✅
+            </div>
+
+            <p>Taken</p>
+
+            <strong id="takenCount">
+                0
+            </strong>
+
+        </div>
+
+
+        <div class="card">
+
+            <div class="card-icon orange">
+                ⏰
+            </div>
+
+            <p>Pending</p>
+
+            <strong id="pendingCount">
+                0
+            </strong>
+
+        </div>
+
+
+        <div class="card">
+
+            <div class="card-icon purple">
+                📊
+            </div>
+
+            <p>Adherence</p>
+
+            <strong id="adherence">
+                0%
+            </strong>
+
+        </div>
+
+    </div>
+
+
+    <!-- TODAY'S MEDICINES -->
+
+    <div class="panel">
+
+        <div class="panel-title">
+
+            <div>
+
+                <h2>
+                    Today's Medicines
+                </h2>
+
+                <p>
+                    Your medication schedule
+                </p>
+
+            </div>
+
+            <input
+                id="searchMedicine"
+                placeholder="🔍 Search..."
+                oninput="renderAll()"
+            >
+
+        </div>
+
+        <div id="dashboardMedicines"></div>
+
+    </div>
+
+
+    <!-- REMINDER -->
+
+    <div
+        id="reminderBox"
+        class="reminder hidden"
+    >
+
+        <div>
+            <strong>
+                🔔 Medication Reminder
+            </strong>
+
+            <p id="reminderText"></p>
+        </div>
+
+        <button onclick="closeReminder()">
+            Dismiss
+        </button>
+
+    </div>
+
+</section>
+
+
+<!-- ================= MEDICINES ================= -->
+
+<section
+    id="medicines"
+    class="page hidden"
+>
+
+    <div class="page-heading">
+
+        <div>
+
+            <h1>
+                💊 My Medicines
+            </h1>
+
+            <p>
+                Add and manage your medication schedule.
+            </p>
+
+        </div>
+
+        <button
+            class="secondary"
+            onclick="exportData()"
+        >
+            📥 Export Data
+        </button>
+
+    </div>
+
+
+    <!-- ADD MEDICINE -->
+
+    <div class="panel">
+
+        <h2>
+            Add New Medicine
+        </h2>
+
+        <div class="form-grid">
+
+            <div>
+
+                <label>
+                    Medicine Name
+                </label>
+
+                <input
+                    id="medicineName"
+                    placeholder="Example: Paracetamol"
+                >
+
+            </div>
+
+
+            <div>
+
+                <label>
+                    Dose
+                </label>
+
+                <input
+                    id="medicineDose"
+                    placeholder="Example: 500 mg"
+                >
+
+            </div>
+
+
+            <div>
+
+                <label>
+                    Time
+                </label>
+
+                <input
+                    id="medicineTime"
+                    type="time"
+                >
+
+            </div>
+
+
+            <div>
+
+                <label>
+                    Frequency
+                </label>
+
+                <select id="medicineFrequency">
+
+                    <option>
+                        Once daily
+                    </option>
+
+                    <option>
+                        Twice daily
+                    </option>
+
+                    <option>
+                        Three times daily
+                    </option>
+
+                    <option>
+                        As prescribed
+                    </option>
+
+                </select>
+
+            </div>
+
+        </div>
+
+
+        <button
+            class="primary"
+            onclick="addMedicine()"
+        >
+            + Add Medicine
+        </button>
+
+    </div>
+
+
+    <!-- MEDICINE LIST -->
+
+    <div class="panel">
+
+        <h2>
+            Medicine List
+        </h2>
+
+        <div id="medicineList"></div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= SCHEDULE ================= -->
+
+<section
+    id="schedule"
+    class="page hidden"
+>
+
+    <div class="page-heading">
+
+        <div>
+
+            <h1>
+                📅 Medication Schedule
+            </h1>
+
+            <p>
+                Today's medication timeline.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="panel">
+
+        <div id="scheduleList"></div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= PROGRESS ================= -->
+
+<section
+    id="progress"
+    class="page hidden"
+>
+
+    <div class="page-heading">
+
+        <div>
+
+            <h1>
+                📊 Medication Progress
+            </h1>
+
+            <p>
+                Monitor adherence and missed doses.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="progress-grid">
+
+        <div class="progress-box">
+
+            <div id="progressCircle">
+                0%
+            </div>
+
+            <h2>
+                Today's Adherence
+            </h2>
+
+            <p id="progressText">
+                No data yet.
+            </p>
+
+        </div>
+
+
+        <div class="panel">
+
+            <h2>
+                Weekly Adherence
+            </h2>
+
+            <div id="weeklyChart"></div>
+
+        </div>
+
+    </div>
+
+
+    <div class="panel">
+
+        <h2>
+            ⚠️ Missed Medicines
+        </h2>
+
+        <div id="missedList"></div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= CAREGIVER ================= -->
+
+<section
+    id="caregiver"
+    class="page hidden"
+>
+
+    <div class="page-heading">
+
+        <div>
+
+            <h1>
+                🩺 Caregiver Dashboard
+            </h1>
+
+            <p>
+                A simple overview for family members or caregivers.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="caregiver-grid">
+
+        <div class="panel">
+
+            <h2>
+                Patient
+            </h2>
+
+            <div class="patient">
+
+                <div class="patient-avatar">
+                    P
+                </div>
+
+                <div>
+
+                    <strong>
+                        Patient User
+                    </strong>
+
+                    <p>
+                        Medication tracking profile
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="panel">
+
+            <h2>
+                Today's Status
+            </h2>
+
+            <div id="caregiverStatus"></div>
+
+        </div>
+
+    </div>
+
+
+    <div class="panel">
+
+        <h2>
+            Caregiver Actions
+        </h2>
+
+        <button
+            class="secondary"
+            onclick="alert('Caregiver notification feature can be connected to SMS/email services in the production version.')"
+        >
+            🔔 Send Reminder
+        </button>
+
+        <button
+            class="secondary"
+            onclick="alert('This demo can be connected to a doctor portal in the production version.')"
+        >
+            🧑‍⚕️ Contact Doctor
+        </button>
+
+    </div>
+
+</section>
+
+
+<!-- ================= AI ASSISTANT ================= -->
+
+<section
+    id="assistant"
+    class="page hidden"
+>
+
+    <div class="page-heading">
+
+        <div>
+
+            <h1>
+                🤖 Med Track AI Assistant
+            </h1>
+
+            <p>
+                Ask questions about your medication schedule.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="chat-box">
+
+        <div
+            id="chatMessages"
+            class="chat-messages"
+        >
+
+            <div class="bot-message">
+
+                👋 Hello! I can help you check your
+                medication schedule and adherence.
+
+                <br><br>
+
+                Try asking:
+                <br>
+
+                <b>
+                    "What is my next medicine?"
+                </b>
+
+            </div>
+
+        </div>
+
+
+        <div class="chat-input">
+
+            <input
+                id="aiInput"
+                placeholder="Ask something..."
+                onkeydown="handleAIKey(event)"
+            >
+
+            <button
+                class="primary"
+                onclick="askAssistant()"
+            >
+                Send
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <div class="warning">
+
+        ⚠️ <strong>Important:</strong>
+
+        This assistant is a demonstration feature.
+        It does not diagnose conditions, prescribe medicines,
+        or replace a doctor or pharmacist.
+
+    </div>
+
+</section>
+
+
+<!-- ================= FOOTER ================= -->
+
+<footer>
+
+    <p>
+        © 2026 Med Track Wise
+    </p>
+
+    <p>
+        Smart medication tracking for better routines.
+    </p>
+
+</footer>
+
+
+<script src="script.js"></script>
+
+</body>
+
+</html>
