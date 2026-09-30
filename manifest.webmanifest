@@ -1,0 +1,9 @@
+{
+  "name": "Med Track Wise",
+  "short_name": "Med Track",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f8fb",
+  "theme_color": "#1683d8",
+  "description": "Offline-first family medication schedule and health log."
+}

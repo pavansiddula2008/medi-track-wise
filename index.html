@@ -12,6 +12,10 @@
 
     <title>Med Track Wise</title>
 
+    <meta name="theme-color" content="#1683d8">
+
+    <link rel="manifest" href="manifest.webmanifest">
+
     <link
         rel="stylesheet"
         href="style.css"
@@ -21,9 +25,42 @@
 
 <body>
 
+<main id="loginScreen" class="login-screen">
+    <section class="login-panel" aria-labelledby="loginTitle">
+        <div class="login-brand">❤️ Med Track Wise</div>
+        <p class="eyebrow">PRIVATE FAMILY MEDICINE TRACKER</p>
+        <h1 id="loginTitle">Your family's care, together</h1>
+        <p id="loginIntro" class="login-intro">Sign in to a profile saved on this device.</p>
+        <div class="login-tabs account-tabs" role="tablist" aria-label="Account action">
+            <button id="signInTab" class="login-tab active" type="button" role="tab" aria-selected="true" onclick="setAccountMode('login')">Sign in</button>
+            <button id="createAccountTab" class="login-tab" type="button" role="tab" aria-selected="false" onclick="setAccountMode('create')">Create account</button>
+        </div>
+        <div class="login-tabs" role="tablist" aria-label="Contact method">
+            <button id="emailTab" class="login-tab active" type="button" role="tab" aria-selected="true" onclick="setLoginMethod('email')">Email</button>
+            <button id="phoneTab" class="login-tab" type="button" role="tab" aria-selected="false" onclick="setLoginMethod('phone')">Phone</button>
+        </div>
+        <form id="loginForm" onsubmit="handleAccountSubmit(event)">
+            <div id="profileNameField" class="login-field hidden">
+                <label for="profileName">Patient's name</label>
+                <input id="profileName" autocomplete="name" placeholder="For example, Ravi Kumar" disabled>
+            </div>
+            <div id="emailField" class="login-field">
+                <label for="loginEmail">Email address</label>
+                <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com" required>
+            </div>
+            <div id="phoneField" class="login-field hidden">
+                <label for="loginPhone">Phone number</label>
+                <input id="loginPhone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+1 555 123 4567" title="Enter a valid phone number" disabled>
+            </div>
+            <button id="accountSubmit" class="primary login-submit" type="submit">Sign in</button>
+        </form>
+        <p id="accountNotice" class="login-notice">Profiles are stored only in this browser. They are not password protected or synced to other devices.</p>
+    </section>
+</main>
+
 <!-- ================= HEADER ================= -->
 
-<header class="topbar">
+<header class="topbar hidden">
 
     <div class="logo">
         ❤️ <span>Med Track Wise</span>
@@ -55,9 +92,21 @@
             AI Assistant
         </button>
 
+        <button onclick="showPage('medicineGuide')">
+            Medicine Guide
+        </button>
+
     </nav>
 
     <div class="top-actions">
+
+        <label class="profile-switch-label" for="profileSelect">Patient</label>
+
+        <select id="profileSelect" class="profile-select" aria-label="Switch patient profile" onchange="switchProfile(this.value)"></select>
+
+        <button class="secondary logout-button" onclick="logout()">
+            Sign out
+        </button>
 
         <button
             class="icon-button"
@@ -84,7 +133,7 @@
 
 <section
     id="dashboard"
-    class="page"
+    class="page hidden"
 >
 
     <div class="hero">
@@ -95,9 +144,7 @@
                 SMART MEDICATION MANAGEMENT
             </p>
 
-            <h1>
-                Never miss an important dose.
-            </h1>
+            <h1 id="greetingTitle">Good day.</h1>
 
             <p>
                 Organize medicines, receive reminders,
@@ -117,6 +164,13 @@
             💊
         </div>
 
+    </div>
+
+    <div id="homeAlerts" class="home-alerts" aria-live="polite"></div>
+
+    <div class="dashboard-tools">
+        <button class="secondary" onclick="speakDashboard()">🔊 Read today's plan</button>
+        <button class="secondary" onclick="showPage('schedule')">Open timetable</button>
     </div>
 
 
@@ -323,6 +377,28 @@
 
             </div>
 
+            <div>
+                <label for="medicineInstructions">Instructions (optional)</label>
+                <input id="medicineInstructions" placeholder="For example: after breakfast">
+            </div>
+
+            <div>
+                <label for="medicineStock">Tablets / doses in stock</label>
+                <input id="medicineStock" type="number" min="0" step="1" placeholder="Not tracking">
+            </div>
+
+            <div>
+                <label for="medicineUnitsPerDose">Tablets / units per dose</label>
+                <input id="medicineUnitsPerDose" type="number" min="1" step="1" value="1">
+            </div>
+
+            <div class="form-wide">
+                <label for="prescriptionPhoto">Prescription photo (optional)</label>
+                <input id="prescriptionPhoto" type="file" accept="image/*" capture="environment">
+                <p class="field-help">Enter the medicine and schedule above exactly as prescribed. Photos are stored on this device; this app does not read prescriptions automatically.</p>
+                <img id="prescriptionPreview" class="image-preview hidden" alt="Selected prescription preview">
+            </div>
+
 
             <div>
 
@@ -352,6 +428,29 @@
 
             </div>
 
+            <div>
+                <label for="medicineStartDate">Start date</label>
+                <input id="medicineStartDate" type="date">
+            </div>
+
+            <div>
+                <label for="medicineEndDate">End date (optional)</label>
+                <input id="medicineEndDate" type="date">
+            </div>
+
+            <fieldset class="day-picker form-wide">
+                <legend>Repeat on</legend>
+                <label><input type="checkbox" name="medicineDay" value="1" checked> Mon</label>
+                <label><input type="checkbox" name="medicineDay" value="2" checked> Tue</label>
+                <label><input type="checkbox" name="medicineDay" value="3" checked> Wed</label>
+                <label><input type="checkbox" name="medicineDay" value="4" checked> Thu</label>
+                <label><input type="checkbox" name="medicineDay" value="5" checked> Fri</label>
+                <label><input type="checkbox" name="medicineDay" value="6" checked> Sat</label>
+                <label><input type="checkbox" name="medicineDay" value="0" checked> Sun</label>
+            </fieldset>
+
+            <p class="field-help form-wide">Each entry creates one reminder time. For more than one daily dose, add a separate entry for each prescribed time.</p>
+
         </div>
 
 
@@ -377,6 +476,38 @@
 
     </div>
 
+</section>
+
+
+<!-- ================= MEDICINE GUIDE ================= -->
+
+<section id="medicineGuide" class="page hidden">
+    <div class="page-heading">
+        <div>
+            <h1>Medicine photo library</h1>
+            <p>Keep package photos and notes together for each family profile.</p>
+        </div>
+    </div>
+    <div class="warning">A photo cannot safely identify a medicine or confirm what it is for. Check the package label and ask a pharmacist or doctor when unsure.</div>
+    <div class="panel">
+        <h2>Add a medicine reference</h2>
+        <div class="form-grid">
+            <div>
+                <label for="guideMedicineName">Medicine name from the label</label>
+                <input id="guideMedicineName" placeholder="Name printed on the package">
+            </div>
+            <div>
+                <label for="guideMedicinePhoto">Package photo</label>
+                <input id="guideMedicinePhoto" type="file" accept="image/*" capture="environment">
+            </div>
+            <div class="form-wide">
+                <label for="guideMedicineNotes">Notes from your pharmacist or package</label>
+                <textarea id="guideMedicineNotes" rows="3" placeholder="Only record information confirmed by a healthcare professional or the official label"></textarea>
+            </div>
+        </div>
+        <button class="primary" onclick="addMedicineReference()">Save reference</button>
+    </div>
+    <div id="medicineReferences" class="reference-grid"></div>
 </section>
 
 
@@ -479,6 +610,32 @@
 
     </div>
 
+    <div class="panel">
+        <h2>Blood pressure log</h2>
+        <p class="field-help">Record readings from your checkups. This log does not diagnose or replace medical advice.</p>
+        <div class="form-grid">
+            <div>
+                <label for="bpSystolic">Systolic (top number)</label>
+                <input id="bpSystolic" type="number" min="50" max="260" inputmode="numeric" placeholder="120">
+            </div>
+            <div>
+                <label for="bpDiastolic">Diastolic (bottom number)</label>
+                <input id="bpDiastolic" type="number" min="30" max="160" inputmode="numeric" placeholder="80">
+            </div>
+            <div>
+                <label for="bpDate">Reading date</label>
+                <input id="bpDate" type="date">
+            </div>
+            <div>
+                <label for="bpNote">Optional note</label>
+                <input id="bpNote" placeholder="For example: clinic visit">
+            </div>
+        </div>
+        <button class="primary" onclick="saveBloodPressure()">Save reading</button>
+        <div id="bpSummary" class="bp-summary"></div>
+        <div id="bpHistory" class="bp-history"></div>
+    </div>
+
 </section>
 
 
@@ -516,13 +673,13 @@
 
             <div class="patient">
 
-                <div class="patient-avatar">
+                <div id="patientAvatar" class="patient-avatar">
                     P
                 </div>
 
                 <div>
 
-                    <strong>
+                    <strong id="patientName">
                         Patient User
                     </strong>
 
@@ -553,22 +710,23 @@
     <div class="panel">
 
         <h2>
-            Caregiver Actions
+            Family and caregiver
         </h2>
 
-        <button
-            class="secondary"
-            onclick="alert('Caregiver notification feature can be connected to SMS/email services in the production version.')"
-        >
-            🔔 Send Reminder
-        </button>
-
-        <button
-            class="secondary"
-            onclick="alert('This demo can be connected to a doctor portal in the production version.')"
-        >
-            🧑‍⚕️ Contact Doctor
-        </button>
+        <div class="form-grid">
+            <div>
+                <label for="caregiverName">Caregiver name</label>
+                <input id="caregiverName" autocomplete="name" placeholder="Family member">
+            </div>
+            <div>
+                <label for="caregiverPhone">Caregiver phone</label>
+                <input id="caregiverPhone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+1 555 123 4567">
+            </div>
+        </div>
+        <button class="primary" onclick="saveCaregiver()">Save caregiver</button>
+        <button class="secondary" onclick="addFamilyProfile()">＋ Add family profile</button>
+        <button class="secondary" onclick="shareCaregiverUpdate()">Send missed-dose update</button>
+        <p class="field-help">Missed-dose alerts can appear on this device. Automatic SMS or WhatsApp delivery needs a connected messaging service; this button opens a message for you to send.</p>
 
     </div>
 
@@ -627,11 +785,15 @@
 
         <div class="chat-input">
 
+            <button class="secondary voice-button" type="button" onclick="startVoiceQuestion()" title="Ask with your voice" aria-label="Ask with your voice">🎙️</button>
+
             <input
                 id="aiInput"
                 placeholder="Ask something..."
                 onkeydown="handleAIKey(event)"
             >
+
+            <button class="secondary voice-button" type="button" onclick="speakConversation()" title="Read conversation aloud" aria-label="Read conversation aloud">🔊</button>
 
             <button
                 class="primary"
@@ -649,9 +811,10 @@
 
         ⚠️ <strong>Important:</strong>
 
-        This assistant is a demonstration feature.
-        It does not diagnose conditions, prescribe medicines,
-        or replace a doctor or pharmacist.
+        This is an offline schedule helper, not a medical AI.
+        It cannot identify medicines, diagnose conditions,
+        prescribe medicines, or replace a doctor or pharmacist.
+        Browser voice recognition availability and privacy depend on your device.
 
     </div>
 
@@ -660,7 +823,7 @@
 
 <!-- ================= FOOTER ================= -->
 
-<footer>
+<footer class="hidden">
 
     <p>
         © 2026 Med Track Wise
