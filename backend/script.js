@@ -8,7 +8,6 @@ let healthReadings = [];
 let medicineReferences = [];
 let adherenceLog = [];
 let currentFamilyId = null;
-let assistantRequestPending = false;
 
 function readJSON(key, fallback) {
     try {
@@ -93,29 +92,22 @@ function savePatientName(event) {
 
 function renamePatient() {
     if (!activeProfile) return;
-    const input = document.getElementById("patientNameInput");
-    const currentName = (input?.value || activeProfile.name || "").trim();
-    const name = window.prompt("Enter the patient's name:", currentName)?.trim();
-    if (name === null || !name) return;
+    const name = window.prompt("Enter the patient's name:", activeProfile.name)?.trim();
+    if (!name) return;
     if (name.length > 80) {
         alert("Patient names must be 80 characters or fewer.");
         return;
     }
-    if (input) input.value = name;
     updatePatientName(name);
 }
 
 function updatePatientName(name) {
-    if (!activeProfile) return;
     activeProfile.name = name;
     saveData();
     populateProfileSelect();
-    renderAll();
     updateGreeting();
     updateCaregiver();
     updateHomeAlerts();
-    const patientNameInput = document.getElementById("patientNameInput");
-    if (patientNameInput && document.activeElement !== patientNameInput) patientNameInput.value = name;
     showReminder("Patient name updated.");
 }
 
@@ -183,23 +175,20 @@ function adjustStock(id, change) {
 }
 
 function setMedicineTakenState(medicine, isTaken) {
-    const date = today();
     medicine.taken = Boolean(isTaken);
-    medicine.takenDate = isTaken ? date : null;
+    medicine.takenDate = isTaken ? today() : null;
 }
 
 function takeMedicine(id) {
-    const medicine = medicines.find(item => Number(item.id) === id);
+    const medicine = medicines.find(item => Number(item.id) === Number(id));
     if (!medicine) return;
     const date = today();
     setMedicineTakenState(medicine, true);
     const existingLog = adherenceLog.find(entry => entry.date === date && Number(entry.medicineId) === Number(id));
-    if (!existingLog) {
-        adherenceLog.push({ date, medicineId: Number(id) });
-    }
+    if (!existingLog) adherenceLog.push({ date, medicineId: Number(id) });
     saveData();
     renderAll();
-    showReminder(`${medicine.name} marked as task complete for today.`);
+    showReminder(`${medicine.name} marked as taken for today.`);
 }
 
 function getFilteredMedicines() {
@@ -218,7 +207,7 @@ function medicineHTML(medicine, showDelete = false) {
         : "";
     return `<article class="medicine"><div>${photo}<div class="medicine-name">💊 ${escapeHTML(medicine.name)}</div>
         <div class="medicine-info">${escapeHTML(medicine.dose)} · ${formatTime(medicine.time)} · ${escapeHTML(medicine.frequency || "Daily")} · ${scheduleDayNames(medicine)}${medicine.startDate ? ` · from ${escapeHTML(medicine.startDate)}` : ""}${medicine.endDate ? ` · until ${escapeHTML(medicine.endDate)}` : ""}</div>${instructions}${stock}</div>
-        <div class="medicine-actions">${takenToday ? `<span class="taken">✓ Task complete</span>` : `<button class="take" onclick="takeMedicine(${Number(medicine.id)})">Task complete</button>`}
+        <div class="medicine-actions">${takenToday ? `<span class="taken">✓ Taken</span>` : `<button class="take" onclick="takeMedicine(${Number(medicine.id)})">Mark Taken</button>`}
         <button class="icon-button speak-medicine" onclick="speakMedicine(${Number(medicine.id)})" aria-label="Read ${escapeHTML(medicine.name)} aloud" title="Read aloud">🔊</button>
         ${showDelete ? `<button class="delete" onclick="deleteMedicine(${Number(medicine.id)})">Delete</button>` : ""}</div></article>`;
 }
@@ -331,7 +320,7 @@ function updateHomeAlerts() {
     const next = medicines.filter(item => isScheduledOnDate(item, today()) && !item.taken && item.time >= currentTime).sort((a, b) => a.time.localeCompare(b.time))[0];
     const alerts = [];
     if (!medicines.length) alerts.push(`<div class="alert-item alert-stock"><strong>No schedule yet.</strong> Add medicines prescribed for ${escapeHTML(activeProfile?.name || "this patient")}.</div>`);
-    overdue.forEach(item => alerts.push(`<div class="alert-item alert-urgent"><strong>Missed dose:</strong> ${escapeHTML(item.name)} · ${escapeHTML(item.dose)} · ${formatTime(item.time)} <button class="take" onclick="takeMedicine(${Number(item.id)})">Task complete</button></div>`));
+    overdue.forEach(item => alerts.push(`<div class="alert-item alert-urgent"><strong>Missed dose:</strong> ${escapeHTML(item.name)} · ${escapeHTML(item.dose)} · ${formatTime(item.time)} <button class="take" onclick="takeMedicine(${Number(item.id)})">Mark Taken</button></div>`));
     lowStock.forEach(item => alerts.push(`<div class="alert-item alert-stock"><strong>Refill reminder:</strong> ${escapeHTML(item.name)} has ${item.stockCount} unit(s) left.</div>`));
     if (next) alerts.push(`<div class="alert-item alert-next"><strong>Next:</strong> ${escapeHTML(next.name)}, ${escapeHTML(next.dose)} at ${formatTime(next.time)}${next.instructions ? ` · ${escapeHTML(next.instructions)}` : ""}</div>`);
     container.innerHTML = alerts.join("") || `<div class="alert-item alert-clear">No urgent alerts. You're all caught up.</div>`;
@@ -405,7 +394,7 @@ function updateMissedList() {
     if (!container) return;
     const currentTime = new Date().toTimeString().slice(0, 5);
     const missed = medicines.filter(item => isScheduledOnDate(item, today()) && !item.taken && item.time < currentTime);
-    container.innerHTML = missed.map(item => `<div class="medicine"><div><strong>${escapeHTML(item.name)}</strong><div class="medicine-info">${escapeHTML(item.dose)} · scheduled ${formatTime(item.time)}</div></div><button class="take" onclick="takeMedicine(${Number(item.id)})">Task complete</button></div>`).join("") || `<p class="taken">✓ No missed medicines detected.</p>`;
+    container.innerHTML = missed.map(item => `<div class="medicine"><div><strong>${escapeHTML(item.name)}</strong><div class="medicine-info">${escapeHTML(item.dose)} · scheduled ${formatTime(item.time)}</div></div><button class="take" onclick="takeMedicine(${Number(item.id)})">Mark Taken</button></div>`).join("") || `<p class="taken">✓ No missed medicines detected.</p>`;
 }
 
 function updateProgress() {
@@ -519,82 +508,147 @@ function addMedicineReference() {
     }).catch(() => alert("This photo could not be saved. Try a smaller image."));
 }
 
+function updateMedicineReferences() {
+    const container = document.getElementById("medicineReferences");
+    if (!container) return;
+    container.innerHTML = medicineReferences.map(item => `<article class="reference-item"><img src="${item.photo}" alt="Package photo for ${escapeHTML(item.name)}"><div class="reference-content"><h2>${escapeHTML(item.name)}</h2><p>${escapeHTML(item.notes || "No notes added.")}</p><button class="secondary" onclick="speakReference(${Number(item.id)})">🔊 Read notes</button><button class="delete" onclick="deleteMedicineReference(${Number(item.id)})">Remove</button></div></article>`).join("") || `<div class="panel"><p>No medicine references saved for ${escapeHTML(activeProfile?.name || "this profile")}.</p></div>`;
+}
+
+function speakReference(id) {
+    const item = medicineReferences.find(reference => reference.id === id);
+    if (item) speakText(`${item.name}. ${item.notes || "No notes added."}`);
+}
+
+function deleteMedicineReference(id) {
+    medicineReferences = medicineReferences.filter(item => item.id !== id);
+    saveData();
+    updateMedicineReferences();
+}
+
+function saveBloodPressure() {
+    const systolic = Number(document.getElementById("bpSystolic").value);
+    const diastolic = Number(document.getElementById("bpDiastolic").value);
+    const date = document.getElementById("bpDate").value || today();
+    const note = document.getElementById("bpNote").value.trim();
+    if (!systolic || !diastolic || systolic < 50 || systolic > 260 || diastolic < 30 || diastolic > 160) return alert("Enter the systolic and diastolic values shown by your monitor.");
+    healthReadings.push({ id: Date.now(), systolic, diastolic, date, note });
+    healthReadings.sort((a, b) => a.date.localeCompare(b.date));
+    saveData();
+    document.getElementById("bpSystolic").value = "";
+    document.getElementById("bpDiastolic").value = "";
+    document.getElementById("bpNote").value = "";
+    updateBloodPressureSummary();
+}
+
+function averageReadings(readings, key) {
+    return readings.length ? Math.round(readings.reduce((sum, item) => sum + item[key], 0) / readings.length) : "No readings";
+}
+
+function dateKey(date) {
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+function updateBloodPressureSummary() {
+    const summary = document.getElementById("bpSummary");
+    const history = document.getElementById("bpHistory");
+    if (!summary || !history) return;
+    const current = new Date(`${today()}T00:00:00`);
+    const weekStart = new Date(current);
+    weekStart.setDate(current.getDate() - 6);
+    const previousWeekStart = new Date(weekStart);
+    previousWeekStart.setDate(weekStart.getDate() - 7);
+    const monthDate = new Date(current.getFullYear(), current.getMonth() - 1, 1);
+    const week = healthReadings.filter(item => item.date >= dateKey(weekStart) && item.date <= today());
+    const oldWeek = healthReadings.filter(item => item.date >= dateKey(previousWeekStart) && item.date < dateKey(weekStart));
+    const month = today().slice(0, 7);
+    const oldMonth = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
+    const thisMonth = healthReadings.filter(item => item.date.startsWith(month));
+    const lastMonth = healthReadings.filter(item => item.date.startsWith(oldMonth));
+    const showAverage = records => `${averageReadings(records, "systolic")} / ${averageReadings(records, "diastolic")}${records.length ? " mmHg" : ""} (${records.length} readings)`;
+    summary.innerHTML = [["Last 7 days", week], ["Previous 7 days", oldWeek], ["This month", thisMonth], ["Previous month", lastMonth]].map(([label, records]) => `<div class="comparison-row"><strong>${label}</strong><span>${showAverage(records)}</span></div>`).join("");
+    history.innerHTML = healthReadings.slice().reverse().slice(0, 10).map(item => `<div class="comparison-row"><span>${escapeHTML(item.date)}${item.note ? ` · ${escapeHTML(item.note)}` : ""}</span><strong>${item.systolic} / ${item.diastolic} mmHg</strong></div>`).join("") || `<p class="field-help">No readings recorded yet.</p>`;
+}
+
+function showReminder(message) {
+    const box = document.getElementById("reminderBox");
+    const text = document.getElementById("reminderText");
+    if (!box || !text) return;
+    text.textContent = message;
+    box.classList.remove("hidden");
+}
+
+function closeReminder() {
+    document.getElementById("reminderBox")?.classList.add("hidden");
+}
+
+function requestNotifications() {
+    if (!("Notification" in window)) return alert("This browser does not support notifications.");
+    Notification.requestPermission().then(permission => {
+        if (permission === "granted") new Notification("Med Track Wise", { body: "Medication reminders can appear while the app is open." });
+    });
+}
+
+function checkMedicationReminder() {
+    if (!activeProfile) return;
+    const now = new Date();
+    const minute = now.getHours() * 60 + now.getMinutes();
+    medicines.forEach(item => {
+        if (!isScheduledOnDate(item, today()) || (item.taken && item.takenDate === today())) return;
+        const [hours, minutes] = item.time.split(":").map(Number);
+        const difference = minute - (hours * 60 + minutes);
+        if (difference < 0 || difference > 30) return;
+        const escalated = difference >= 5;
+        const key = `${item.id}:${today()}:${escalated ? "caregiver" : "due"}`;
+        if (activeProfile.alertsSent.includes(key)) return;
+        activeProfile.alertsSent.push(key);
+        const message = escalated
+            ? `${activeProfile.name} has not marked ${item.name} (${item.dose}) taken, five minutes after its scheduled time.`
+            : `Time for ${item.name}, ${item.dose}${item.instructions ? `, ${item.instructions}` : ""}.`;
+        showReminder(message);
+        if ("Notification" in window && Notification.permission === "granted") new Notification("Med Track Wise", { body: message });
+        saveData();
+    });
+}
+
 function handleAIKey(event) {
     if (event.key === "Enter") askAssistant();
 }
 
-function saveAssistantConversation(profile) {
-    if (activeProfile === profile) return saveData();
-    familyProfiles = familyProfiles.map(item => item.id === profile.id ? profile : item);
-    try {
-        localStorage.setItem(PROFILE_KEY, JSON.stringify(familyProfiles));
-    } catch {
-        showReminder("This device is low on storage. Export your data and remove some saved photos.");
-    }
-}
-
-function updateGeminiConsent() {
-    const consent = document.getElementById("aiGeminiConsent")?.checked;
-    const sendButton = document.getElementById("aiSendButton");
-    if (sendButton) sendButton.disabled = !consent || assistantRequestPending;
-}
-
-async function askAssistant() {
+function askAssistant() {
     const input = document.getElementById("aiInput");
-    const consent = document.getElementById("aiGeminiConsent");
-    const status = document.getElementById("aiStatus");
-    const sendButton = document.getElementById("aiSendButton");
-    const question = input?.value.trim();
-    if (!question || !activeProfile || assistantRequestPending) return;
-    if (!consent?.checked) {
-        if (status) status.textContent = "Check the consent box before sending a question.";
-        return;
-    }
-
+    const question = input.value.trim();
+    if (!question || !activeProfile) return;
     const profile = activeProfile;
-    const history = profile.conversation.slice(-8).map(message => ({
-        role: message.type === "user" ? "user" : "model",
-        text: String(message.text || "")
-    }));
-    const schedule = medicines.slice(0, 40).map(medicine => ({
-        name: medicine.name,
-        dose: medicine.dose,
-        time: medicine.time,
-        instructions: medicine.instructions || "",
-        takenToday: medicine.taken && medicine.takenDate === today(),
-        stockCount: Number.isFinite(medicine.stockCount) ? medicine.stockCount : null
-    }));
-    assistantRequestPending = true;
-    input.disabled = true;
-    updateGeminiConsent();
-    if (status) status.textContent = "Waiting for Gemini...";
-    profile.conversation.push({ type: "user", text: question });
-    saveAssistantConversation(profile);
+    const answer = generateAssistantResponse(question);
+    profile.conversation.push({ type: "user", text: question }, { type: "bot", text: answer });
+    saveData();
     input.value = "";
-    if (activeProfile === profile) updateConversation();
+    updateConversation();
+}
 
-    try {
-        const response = await fetch("/api/assistant", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ question, history, schedule })
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.error || "The assistant request failed.");
-        profile.conversation.push({ type: "bot", text: result.answer });
-        if (status) status.textContent = "";
-    } catch (error) {
-        profile.conversation.push({ type: "bot", text: error.message || "Could not connect to Gemini. Please try again." });
-        if (status) status.textContent = "Gemini did not respond.";
-    } finally {
-        saveAssistantConversation(profile);
-        if (activeProfile === profile) updateConversation();
-        assistantRequestPending = false;
-        input.disabled = false;
-        updateGeminiConsent();
-        if (sendButton) sendButton.disabled = !consent.checked;
-        input.focus();
+function generateAssistantResponse(question) {
+    const query = question.toLowerCase();
+    if (query.includes("next") || query.includes("schedule") || query.includes("timetable")) {
+        const upcoming = medicines.filter(item => isScheduledOnDate(item, today()) && (!item.taken || item.takenDate !== today())).sort((a, b) => a.time.localeCompare(b.time));
+        if (!upcoming.length) return `All of ${activeProfile.name}'s scheduled medicines are marked taken today.`;
+        const item = upcoming[0];
+        return `The next listed medicine for ${activeProfile.name} is ${item.name}, ${item.dose}, at ${formatTime(item.time)}${item.instructions ? `. ${item.instructions}` : ""}. Follow the prescription label if anything differs.`;
     }
+    if (query.includes("miss") || query.includes("pending")) {
+        const pending = medicines.filter(item => !item.taken || item.takenDate !== today());
+        return pending.length ? `Still to confirm: ${pending.map(item => `${item.name} at ${formatTime(item.time)}`).join(", ")}.` : "No pending doses are listed today.";
+    }
+    if (query.includes("stock") || query.includes("left") || query.includes("refill")) {
+        const low = medicines.filter(item => Number.isFinite(item.stockCount));
+        return low.length ? low.map(item => `${item.name}: ${item.stockCount} dose(s) left`).join(". ") : "No medicine stock counts have been entered yet.";
+    }
+    if (query.includes("blood pressure") || query.includes("bp")) {
+        const latest = healthReadings.at(-1);
+        return latest ? `The latest saved blood pressure reading is ${latest.systolic} over ${latest.diastolic}, recorded ${latest.date}. I cannot interpret or diagnose readings; discuss them with a healthcare professional.` : "No blood pressure readings are saved for this profile yet.";
+    }
+    if (query.includes("adherence") || query.includes("progress")) return `Today's recorded adherence is ${calculateAdherence()} percent for ${activeProfile.name}.`;
+    if (query.includes("medicine") || query.includes("medication")) return `${activeProfile.name} has ${medicines.length} medicine(s) in the schedule. I can list the next dose, pending items, stock counts, or saved blood pressure readings.`;
+    return "I can check this profile's schedule, pending doses, stock counts, and saved blood pressure readings. I cannot diagnose, recommend a medicine, or change a prescription. For urgent symptoms, contact local emergency services or a healthcare professional.";
 }
 
 function addChatMessage(message, type) {
@@ -700,17 +754,17 @@ function updateBloodPressureSummary() {
     const current = new Date(`${today()}T00:00:00`);
     const weekStart = new Date(current);
     weekStart.setDate(current.getDate() - 6);
-    const previousWeekStart = new Date(weekStart);
-    previousWeekStart.setDate(weekStart.getDate() - 7);
+    const previousStart = new Date(weekStart);
+    previousStart.setDate(weekStart.getDate() - 7);
     const monthDate = new Date(current.getFullYear(), current.getMonth() - 1, 1);
     const week = healthReadings.filter(item => item.date >= dateKey(weekStart) && item.date <= today());
-    const oldWeek = healthReadings.filter(item => item.date >= dateKey(previousWeekStart) && item.date < dateKey(weekStart));
-    const month = today().slice(0, 7);
+    const previousWeek = healthReadings.filter(item => item.date >= dateKey(previousStart) && item.date < dateKey(weekStart));
+    const currentMonth = today().slice(0, 7);
     const oldMonth = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
-    const thisMonth = healthReadings.filter(item => item.date.startsWith(month));
+    const thisMonth = healthReadings.filter(item => item.date.startsWith(currentMonth));
     const lastMonth = healthReadings.filter(item => item.date.startsWith(oldMonth));
-    const showAverage = records => `${averageReadings(records, "systolic")} / ${averageReadings(records, "diastolic")}${records.length ? " mmHg" : ""} (${records.length} readings)`;
-    summary.innerHTML = [["Last 7 days", week], ["Previous 7 days", oldWeek], ["This month", thisMonth], ["Previous month", lastMonth]].map(([label, records]) => `<div class="comparison-row"><strong>${label}</strong><span>${showAverage(records)}</span></div>`).join("");
+    const average = list => `${averageReadings(list, "systolic")} / ${averageReadings(list, "diastolic")}${list.length ? " mmHg" : ""} (${list.length} readings)`;
+    summary.innerHTML = [["Last 7 days", week], ["Previous 7 days", previousWeek], ["This month", thisMonth], ["Previous month", lastMonth]].map(([label, list]) => `<div class="comparison-row"><strong>${label}</strong><span>${average(list)}</span></div>`).join("");
     history.innerHTML = healthReadings.slice().reverse().slice(0, 10).map(item => `<div class="comparison-row"><span>${escapeHTML(item.date)}${item.note ? ` · ${escapeHTML(item.note)}` : ""}</span><strong>${item.systolic} / ${item.diastolic} mmHg</strong></div>`).join("") || `<p class="field-help">No readings recorded yet.</p>`;
 }
 
@@ -738,8 +792,8 @@ function renderAll() {
     if (!activeProfile) return;
     let resetDailyStatus = false;
     medicines.forEach(item => {
-        if (item.taken && item.takenDate && item.takenDate !== today()) {
-            setMedicineTakenState(item, false);
+        if (item.taken && item.takenDate !== today()) {
+            item.taken = false;
             resetDailyStatus = true;
         }
     });

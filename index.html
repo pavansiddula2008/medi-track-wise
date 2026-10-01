@@ -660,6 +660,7 @@
                 <label for="patientNameInput">Patient name</label>
                 <input id="patientNameInput" maxlength="80" autocomplete="off" placeholder="Enter patient name" required>
                 <button class="secondary" type="submit">Save name</button>
+                <button class="secondary" type="button" onclick="renamePatient()">Change patient name</button>
             </form>
 
         </div>
@@ -760,14 +761,17 @@
 
             <input
                 id="aiInput"
-                placeholder="Ask something..."
+                placeholder="Ask about your schedule..."
                 onkeydown="handleAIKey(event)"
             >
 
             <button class="secondary voice-button" type="button" onclick="speakConversation()" title="Read conversation aloud" aria-label="Read conversation aloud">🔊</button>
 
             <button
+                id="aiSendButton"
                 class="primary"
+                type="button"
+                disabled
                 onclick="askAssistant()"
             >
                 Send
@@ -777,14 +781,19 @@
 
     </div>
 
+    <p class="field-help">
+        <label><input id="aiGeminiConsent" type="checkbox" onchange="updateGeminiConsent()"> Send my question, recent chat, and medicine schedule to Google Gemini</label>
+        <span id="aiStatus" role="status" aria-live="polite"></span>
+    </p>
+
 
     <div class="warning">
 
         ⚠️ <strong>Important:</strong>
 
-        This is an offline schedule helper, not a medical AI.
-        It cannot identify medicines, diagnose conditions,
-        prescribe medicines, or replace a doctor or pharmacist.
+        Gemini responses may be wrong and are not medical advice.
+        Do not use this assistant to diagnose, change a dose, or delay urgent care.
+        Contact a doctor or pharmacist for medical decisions.
         Browser voice recognition availability and privacy depend on your device.
 
     </div>
